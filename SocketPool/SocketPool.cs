@@ -28,16 +28,24 @@ using System.Net;
 using System.Threading;
 
 namespace BeIT.MemCached {
-	//[DebuggerDisplay("[ Host: {Host}, Acquired = {acquired}, New = {newsockets}, Reused = {reusedsockets}, Dead = {deadsockets} ]")]
+	/// <summary>
+	/// The SocketPool encapsulates the list of PooledSockets against one specific host, and contains methods for 
+	/// acquiring or returning PooledSockets.
+	/// </summary>
+	[DebuggerDisplay("[ Host: {Host} ]")]
 	internal class SocketPool {
 		private static LogAdapter logger = LogAdapter.GetLogger(typeof(SocketPool));
 
+		/// <summary>
+		/// If a SocketPool is unable to connect to its endpoint, it will mark it as dead, automatically fail
+		/// all calls to Acquire until the specified interval has elapsed, and then retry again.
+		/// </summary>
 		private const int DeadEndPointMinutesUntilRetry = 2;
 		private ServerPool owner;
 		private IPEndPoint endPoint;
 		private Queue<PooledSocket> queue;
 
-		//Debug variables
+		//Debug variables and properties
 		private int newsockets = 0;
 		private int failednewsockets = 0;
 		private int reusedsockets = 0;
@@ -70,6 +78,10 @@ namespace BeIT.MemCached {
 			queue = new Queue<PooledSocket>();
 		}
 
+		/// <summary>
+		/// This method parses the given string into an IPEndPoint.
+		/// If the string is malformed in some way, or if the host cannot be resolved, this method will throw an exception.
+		/// </summary>
 		private static IPEndPoint getEndPoint(string host) {
 			//Parse port, default to 11211.
 			int port = 11211;
@@ -97,10 +109,16 @@ namespace BeIT.MemCached {
 			return new IPEndPoint(address, port);
 		}
 
-		//Get a pooled socket.
+		/// <summary>
+		/// Gets a socket from the pool.
+		/// If there are no free sockets, a new one will be created. If something goes
+		/// wrong while creating the new socket, this pool's endpoint will be marked as dead
+		/// and all subsequent calls to this method will return null until the retry interval
+		/// has passed.
+		/// </summary>
 		internal PooledSocket Acquire() {
 			//Do we have free sockets in the pool?
-			//if so - return the first one.
+			//if so - return the first working one.
 			//if not - create a new one.
 			Interlocked.Increment(ref acquired);
 			lock(queue) {
@@ -141,7 +159,15 @@ namespace BeIT.MemCached {
 			}
 		}
 
-		//Return a socket to the pool
+		/// <summary>
+		/// Returns a socket to the pool.
+		/// If the socket is dead, it will be destroyed.
+		/// If there are more than MaxPoolSize sockets in the pool, it will be destroyed.
+		/// If there are less than MinPoolSize sockets in the pool, it will always be put back.
+		/// If there are something inbetween those values, the age of the socket is checked. 
+		/// If it is older than the SocketRrecycleAge, it is destroyed, otherwise it will be 
+		/// put back in the pool.
+		/// </summary>
 		internal void Return(PooledSocket socket) {
 			//If the socket is dead, destroy it.
 			if (!socket.IsAlive) {
@@ -153,6 +179,7 @@ namespace BeIT.MemCached {
 					Interlocked.Increment(ref dirtysocketsonreturn);
 				}
 
+				//Check pool size.
 				if (queue.Count >= owner.MaxPoolSize) {
 					//If the pool is full, destroy the socket.
 					socket.Close();

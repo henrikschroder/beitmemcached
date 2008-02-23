@@ -33,6 +33,21 @@ namespace BeIT.MemCached {
 			return new LogAdapter(name);
 		}
 
+		/*
+		 * The problem with logging on the .Net platform is that there is no common logging framework, and 
+		 * everyone seems to have their own favorite. We wanted this project to compile straight away
+		 * without external dependencies, and we want you to be able to embed it directly into your code,
+		 * without having to add references to some other logging framework.
+		 * 
+		 * Therefore, the MemcachedClient code uses this LogAdapter to add flexible logging.
+		 * By default, it is implemented as simple console logging.
+		 * 
+		 * If you are using log4net, simply comment out the console logging code, uncomment the log4net code,
+		 * add the using statement, and make sure your project references log4net.
+		 * 
+		 * If you are using some other logging framework, feel free to implement your own version of this LogAdapter.
+		 */
+
 		//Console Implementation
 		private string loggerName;
 		private LogAdapter(string name) { loggerName = name; }

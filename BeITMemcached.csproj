@@ -5,10 +5,11 @@
     <ProductVersion>8.0.50727</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{B09B6F90-7AF4-43BE-8C02-E36AB2487A98}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>BeITMemcached</RootNamespace>
     <AssemblyName>BeITMemcached</AssemblyName>
+    <StartupObject>BeITMemcached.Example</StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -34,6 +35,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Example.cs" />
     <Compile Include="HashAlgorithms.cs" />
     <Compile Include="LogAdapter.cs" />
     <Compile Include="MemcachedClient.cs" />

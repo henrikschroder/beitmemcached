@@ -28,6 +28,11 @@ using System.Net.Sockets;
 using System.Text;
 
 namespace BeIT.MemCached {
+	/// <summary>
+	/// The PooledSocket class encapsulates a socket connection to a specified memcached server.
+	/// It contains a buffered stream for communication, and methods for sending and retrieving
+	/// data from the memcached server, as well as general memcached error checking.
+	/// </summary>
 	internal class PooledSocket : IDisposable {
 		private static LogAdapter logger = LogAdapter.GetLogger(typeof(PooledSocket));
 		
@@ -39,6 +44,8 @@ namespace BeIT.MemCached {
 		public PooledSocket(SocketPool socketPool, IPEndPoint endPoint, int sendReceiveTimeout) {
 			this.socketPool = socketPool;
 			Created = DateTime.Now;
+
+			//Set up the socket.
 			socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendTimeout, sendReceiveTimeout);
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, sendReceiveTimeout);
@@ -51,13 +58,20 @@ namespace BeIT.MemCached {
 			//Establish connection
 			socket.Connect(endPoint);
 
+			//Wraps two layers of streams around the socket for communication.
 			stream = new BufferedStream(new NetworkStream(socket, false));
 		}
 
+		/// <summary>
+		/// Disposing of a PooledSocket object in any way causes it to be returned to its SocketPool.
+		/// </summary>
 		public void Dispose() {
 			socketPool.Return(this);
 		}
 
+		/// <summary>
+		/// This method closes the underlying stream and socket.
+		/// </summary>
 		public void Close() {
 			if (stream != null) {
 				try { stream.Close(); } catch (Exception e) { logger.Error("Error closing stream: " + socketPool.Host, e); }
@@ -70,20 +84,32 @@ namespace BeIT.MemCached {
 			}
 		}
 
+		/// <summary>
+		/// Checks if the underlying socket and stream is connected and available.
+		/// </summary>
 		public bool IsAlive {
 			get { return socket != null && socket.Connected && stream.CanRead; }
 		}
 
+		/// <summary>
+		/// Writes a string to the socket encoded in UTF8 format.
+		/// </summary>
 		public void Write(string str) {
 			Write(Encoding.UTF8.GetBytes(str));
 		}
 
+		/// <summary>
+		/// Writes an array of bytes to the socket and flushes the stream.
+		/// </summary>
 		public void Write(byte[] bytes) {
 			stream.Write(bytes, 0, bytes.Length);
 			stream.Flush();
 		}
 
-		//Reads until \r\n, but does not return those characters.
+		/// <summary>
+		/// Reads from the socket until the sequence '\r\n' is encountered, 
+		/// and returns everything up to but not including that sequence as a UTF8-encoded string
+		/// </summary>
 		public string ReadLine() {
 			MemoryStream buffer = new MemoryStream();
 			int b;
@@ -106,7 +132,10 @@ namespace BeIT.MemCached {
 			return Encoding.UTF8.GetString(buffer.GetBuffer());
 		}
 
-		//Reads a response line, checks for general errors, and returns the line.
+		/// <summary>
+		/// Reads a response line from the socket, checks for general memcached errors, and returns the line.
+		/// If an error is encountered, this method will throw an exception.
+		/// </summary>
 		public string ReadResponse() {
 			string response = ReadLine();
 
@@ -123,7 +152,9 @@ namespace BeIT.MemCached {
 			return response;
 		}
 
-		//Fills the array from the stream.
+		/// <summary>
+		/// Fills the given byte array with data from the socket.
+		/// </summary>
 		public void Read(byte[] bytes) {
 			if(bytes == null) {
 				return;
@@ -135,6 +166,9 @@ namespace BeIT.MemCached {
 			}
 		}
 
+		/// <summary>
+		/// Reads from the socket until the sequence '\r\n' is encountered.
+		/// </summary>
 		public void SkipUntilEndOfLine() {
 			int b;
 			bool gotReturn = false;
@@ -152,8 +186,10 @@ namespace BeIT.MemCached {
 			}
 		}
 
-		//Empties all buffers and makes sure the socket is empty of received data.
-		//If there was any leftover data, this method will return true, otherwise false.
+		/// <summary>
+		/// Resets this PooledSocket by making sure the incoming buffer of the socket is empty.
+		/// If there was any leftover data, this method return true.
+		/// </summary>
 		public bool Reset() {
 			if (socket.Available > 0) {
 				byte[] b = new byte[socket.Available];
