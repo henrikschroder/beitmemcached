@@ -6,7 +6,7 @@ namespace BeITMemcached {
 		public static void Main(string[] args) {
 			Console.Out.WriteLine("Setting up Memcached Client.");			
 			//Set up a client.
-			MemcachedClient.Setup("MyCache", new string[] { "localhost", "localhost:11211" });
+			MemcachedClient.Setup("MyCache", new string[] { "localhost" });
 
 			//It is possible to have several clients with different configurations:
 			//If it is impossible to resolve the hosts, this method will throw an exception.
