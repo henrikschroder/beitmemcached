@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using BeIT.MemCached;
 
-namespace BeITMemcached {
+namespace BeIT.MemCached {
 	class Example {
 		public static void Main(string[] args) {
 			Console.Out.WriteLine("Setting up Memcached Client.");			

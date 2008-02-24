@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>BeITMemcached</RootNamespace>
     <AssemblyName>BeITMemcached</AssemblyName>
-    <StartupObject>BeITMemcached.Example</StartupObject>
+    <StartupObject>BeIT.MemCached.Example</StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -33,18 +33,16 @@
     <Reference Include="System.configuration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ClientLibrary\HashAlgorithms.cs" />
+    <Compile Include="ClientLibrary\LogAdapter.cs" />
+    <Compile Include="ClientLibrary\MemcachedClient.cs" />
+    <Compile Include="ClientLibrary\MemcachedClientException.cs" />
+    <Compile Include="ClientLibrary\PooledSocket.cs" />
+    <Compile Include="ClientLibrary\Serializer.cs" />
+    <Compile Include="ClientLibrary\ServerPool.cs" />
+    <Compile Include="ClientLibrary\SocketPool.cs" />
     <Compile Include="Example.cs" />
-    <Compile Include="HashAlgorithms.cs" />
-    <Compile Include="LogAdapter.cs" />
-    <Compile Include="MemcachedClient.cs" />
-    <Compile Include="MemcachedClientException.cs" />
-    <Compile Include="Serializer.cs" />
-    <Compile Include="SocketPool\PooledSocket.cs" />
-    <Compile Include="SocketPool\ServerPool.cs" />
-    <Compile Include="SocketPool\SocketPool.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Properties\" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
