@@ -508,16 +508,28 @@ namespace BeIT.MemCached{
 		/// This method corresponds to the "flush_all" command in the memcached protocol.
 		/// When this method is called, it will send the flush command to all servers, thereby deleting
 		/// all items on all servers.
+		/// Use the overloads to set a delay for the flushing. If the parameter staggered is set to true,
+		/// the client will increase the delay for each server, i.e. the first will flush after delay*0, 
+		/// the second after delay*1, the third after delay*2, etc. If set to false, all servers will flush 
+		/// after the same delay.
 		/// It returns true if the command was successful on all servers.
 		/// </summary>
-		public bool FlushAll() {
+		public bool FlushAll() { return FlushAll(TimeSpan.Zero, false); }
+		public bool FlushAll(TimeSpan delay) { return FlushAll(delay, false); }
+		public bool FlushAll(TimeSpan delay, bool staggered) {
 			bool noerrors = true;
-			serverPool.ExecuteAll(delegate(PooledSocket socket){
-				socket.Write("flush_all\r\n");
-				if (!socket.ReadResponse().StartsWith("OK")) {
-					noerrors = false;
-				}
-			});
+			uint count = 0;
+			foreach (SocketPool pool in serverPool.HostList) {
+				serverPool.Execute(pool, delegate(PooledSocket socket) {
+					uint delaySeconds = (staggered ? (uint)delay.TotalSeconds * count : (uint)delay.TotalSeconds);
+					//Funnily enough, "flush_all 0" has no effect, you have to send "flush_all" to flush immediately.
+					socket.Write("flush_all " + (delaySeconds==0?"":delaySeconds.ToString()) + "\r\n");
+					if (!socket.ReadResponse().StartsWith("OK")) {
+						noerrors = false;
+					}
+					count++;
+				});
+			}
 			return noerrors;
 		}
 		#endregion
