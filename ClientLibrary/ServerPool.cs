@@ -64,7 +64,7 @@ namespace BeIT.MemCached {
 			List<uint> keys = new List<uint>();
 			foreach(string host in hosts) {
 				//Create pool
-				SocketPool pool = new SocketPool(this, host);
+				SocketPool pool = new SocketPool(this, host.Trim());
 
 				//Create 100 keys for this pool, store each key in the hostDictionary, as well as in the list of keys.
 				string str = host;

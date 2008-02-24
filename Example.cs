@@ -4,22 +4,36 @@ using System.Collections.Generic;
 namespace BeIT.MemCached {
 	class Example {
 		public static void Main(string[] args) {
-			Console.Out.WriteLine("Setting up Memcached Client.");			
-			//Set up a client.
+			//---------------------
+			// Setting up a client.
+			//---------------------
+			Console.Out.WriteLine("Setting up Memcached Client.");
 			MemcachedClient.Setup("MyCache", new string[] { "localhost" });
 
 			//It is possible to have several clients with different configurations:
 			//If it is impossible to resolve the hosts, this method will throw an exception.
-			//MemcachedClient.Setup("MyOtherCache", new string[]{ "server1.example.com", "server2.example.com"});
+			try {
+				MemcachedClient.Setup("MyOtherCache", new string[]{ "server1.example.com:12345", "server2.example.com:12345"});
+			} catch (Exception e) {
+				Console.WriteLine(e.Message);
+			}
 
 			//Get the instance we just set up so we can use it. You can either store this reference yourself in
 			//some field, or fetch it every time you need it, it doesn't really matter.
 			MemcachedClient cache = MemcachedClient.GetInstance("MyCache");
 
+			//It is also possible to set up clients in the standard config file. Check the section "beitmemcached" 
+			//in the App.config file in this project and you will see that a client called "MyConfigFileCache" is defined.
+			MemcachedClient configFileCache = MemcachedClient.GetInstance("MyConfigFileCache");
+
 			//Change client settings to values other than the default like this:
 			cache.SendReceieveTimeout = 5000;
 			cache.MinPoolSize = 1;
 			cache.MaxPoolSize = 5;
+
+			//----------------
+			// Using a client.
+			//----------------
 
 			//Set some items
 			Console.Out.WriteLine("Storing some items.");

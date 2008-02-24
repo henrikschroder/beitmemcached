@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Configuration;
 using System.Globalization;
 using System.Text;
@@ -70,7 +71,11 @@ namespace BeIT.MemCached{
 		}
 
 		/// <summary>
-		/// Static method for getting an instance. This method throws an exception if the instance does not exist.
+		/// Static method for getting an instance. 
+		/// This method will first check for named instances that has been set up programmatically.
+		/// If no such instance exists, it will check the "beitmemcached" section of the standard 
+		/// config file and see if it can find configuration info for it there.
+		/// If that also fails, an exception is thrown.
 		/// </summary>
 		/// <param name="name">The name of the instance.</param>
 		/// <returns>The named instance.</returns>
@@ -79,7 +84,11 @@ namespace BeIT.MemCached{
 			if (instances.TryGetValue(name, out c)) {
 				return c;
 			} else {
-				//TODO: Try to read app.config/web.config and create an instance with this name
+				NameValueCollection config = ConfigurationManager.GetSection("beitmemcached") as NameValueCollection;
+				if (config != null && !String.IsNullOrEmpty(config.Get(name))) {
+					Setup(name, config.Get(name).Split(new char[] { ',' }));
+					return GetInstance(name);
+				}
 				throw new ConfigurationErrorsException("Unable to find MemcachedClient instance \"" + name + "\".");
 			}
 		}
