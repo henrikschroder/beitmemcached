@@ -25,7 +25,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using System.Threading;
 
 namespace BeIT.MemCached {
 	internal delegate T UseSocket<T>(PooledSocket socket);
@@ -39,7 +38,10 @@ namespace BeIT.MemCached {
 	internal class ServerPool {
 		private static LogAdapter logger = LogAdapter.GetLogger(typeof(ServerPool));
 
+		//Expose the socket pools.
 		private SocketPool[] hostList;
+		internal SocketPool[] HostList { get { return hostList; } }
+
 		private Dictionary<uint, SocketPool> hostDictionary;
 		private uint[] hostKeys;
 
@@ -64,9 +66,9 @@ namespace BeIT.MemCached {
 				//Create pool
 				SocketPool pool = new SocketPool(this, host);
 
-				//Create 30 keys for this pool, store each key in the hostDictionary, as well as in the list of keys.
+				//Create 100 keys for this pool, store each key in the hostDictionary, as well as in the list of keys.
 				string str = host;
-				for (int i = 0; i < 30; i++) {
+				for (int i = 0; i < 100; i++) {
 					//To get a good distribution of hashes for each host, we start by hashing the name of the host, then we iteratively hash the result until we have the wanted number of hashes.
 					uint key = BitConverter.ToUInt32(new ModifiedFNV1_32().ComputeHash(Encoding.UTF8.GetBytes(str)), 0);
 					if (!hostDictionary.ContainsKey(key)) {
@@ -87,11 +89,10 @@ namespace BeIT.MemCached {
 			//given item key hash should be assigned to.
 			keys.Sort();
 			hostKeys = keys.ToArray();
-
 		}
 
 		/// <summary>
-		/// Given a item key hash, this method returns the serverpool which is closest on the server key continuum.
+		/// Given an item key hash, this method returns the serverpool which is closest on the server key continuum.
 		/// </summary>
 		internal SocketPool GetSocketPool(uint hash) {
 			//Quick return if we only have one host.
@@ -115,9 +116,6 @@ namespace BeIT.MemCached {
 			return hostDictionary[hostKeys[i]];
 		}
 
-		//Debug field
-		public static int InExecuteCounter = 0;
-
 		/// <summary>
 		/// This method executes the given delegate on a socket from the server that corresponds to the given hash.
 		/// If anything causes an error, the given defaultValue will be returned instead.
@@ -129,7 +127,6 @@ namespace BeIT.MemCached {
 
 		internal T Execute<T>(SocketPool pool, T defaultValue, UseSocket<T> use) {
 			PooledSocket sock = null;
-			Interlocked.Increment(ref InExecuteCounter);
 			try {
 				//Acquire a socket
 				sock = pool.Acquire();
@@ -146,7 +143,6 @@ namespace BeIT.MemCached {
 					sock.Close();
 				}
 			} finally {
-				Interlocked.Decrement(ref InExecuteCounter);
 				if (sock != null) {
 					sock.Dispose();
 				}
@@ -156,7 +152,6 @@ namespace BeIT.MemCached {
 
 		internal void Execute(SocketPool pool, UseSocket use) {
 			PooledSocket sock = null;
-			Interlocked.Increment(ref InExecuteCounter);
 			try {
 				//Acquire a socket
 				sock = pool.Acquire();
@@ -174,7 +169,6 @@ namespace BeIT.MemCached {
 				}
 			}
 			finally {
-				Interlocked.Decrement(ref InExecuteCounter);
 				if(sock != null) {
 					sock.Dispose();
 				}
@@ -188,33 +182,6 @@ namespace BeIT.MemCached {
 			foreach(SocketPool socketPool in hostList){
 				Execute(socketPool, use);
 			}
-		}
-
-		/// <summary>
-		/// This method checks the status of each server and returns a Dictionary with usage statistics
-		/// for each server.
-		/// </summary>
-		internal Dictionary<string, string> Status() {
-			Dictionary<string, string> result = new Dictionary<string, string>();
-			result.Add("<b>General</b>", "Current execute counter: " + InExecuteCounter);
-			foreach (SocketPool socketPool in hostList) {
-				string str;
-				if (Execute<bool>(socketPool, false, delegate{ return true; })) {
-					str = "\tStatus:\t\t\tOk\n";
-				} else {
-					str = "\tStatus:\t\t\tDead, next retry at: " + socketPool.DeadEndPointRetryTime + "\n";
-				}
-				str += "\tSockets in pool:\t" + socketPool.Poolsize + "\n";
-				str += "\tAcquired sockets:\t" + socketPool.Acquired + "\n";
-				str += "\tNew sockets created:\t" + socketPool.NewSockets + "\n";
-				str += "\tNew sockets failed:\t" + socketPool.FailedNewSockets + "\n";
-				str += "\tSockets reused:\t\t" + socketPool.ReusedSockets + "\n";
-				str += "\tSockets died in pool:\t" + socketPool.DeadSocketsInPool + "\n";
-				str += "\tSockets died on return:\t" + socketPool.DeadSocketsOnReturn + "\n";
-				str += "\tDirty sockets return:\t" + socketPool.DirtySocketsOnReturn + "\n";
-				result.Add("<b>" + socketPool.Host + "</b>", str);
-			}
-			return result;
 		}
 	}
 }

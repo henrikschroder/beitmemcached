@@ -530,17 +530,18 @@ namespace BeIT.MemCached{
 		/// </summary>
 		public Dictionary<string, Dictionary<string, string>> Stats() {
 			Dictionary<string, Dictionary<string, string>> results = new Dictionary<string, Dictionary<string, string>>();
-			serverPool.ExecuteAll(delegate(PooledSocket socket){
-				Dictionary<string, string> result = new Dictionary<string,string>();
-				//TODO: //results[socket.Host] = result; 
-
-				socket.Write("stats\r\n");
-				string line;
-				while (!(line = socket.ReadResponse().TrimEnd('\0', '\r', '\n')).StartsWith("END")) {
-					string[] s = line.Split(' ');
-					result.Add(s[1], s[2]);
-				}
-			});
+			foreach (SocketPool pool in serverPool.HostList) {
+				Dictionary<string, string> result = new Dictionary<string, string>();
+				serverPool.Execute(pool, delegate(PooledSocket socket) {
+					socket.Write("stats\r\n");
+					string line;
+					while (!(line = socket.ReadResponse().TrimEnd('\0', '\r', '\n')).StartsWith("END")) {
+						string[] s = line.Split(' ');
+						result.Add(s[1], s[2]);
+					}
+				});
+				results.Add(pool.Host, result);
+			}
 			return results;
 		}
 		#endregion
@@ -550,8 +551,27 @@ namespace BeIT.MemCached{
 		/// This method retrives the status from the serverpool. It checks the connection to all servers
 		/// and returns usage statistics for each server.
 		/// </summary>
-		public Dictionary<string, string> Status() {
-			return serverPool.Status();
+		public Dictionary<string, Dictionary<string, string>> Status() {
+			Dictionary<string, Dictionary<string, string>> results = new Dictionary<string, Dictionary<string, string>>();
+			foreach (SocketPool pool in serverPool.HostList) {
+				Dictionary<string, string> result = new Dictionary<string, string>();
+				if (serverPool.Execute<bool>(pool, false, delegate { return true; })) {
+					result.Add("Status", "Ok");
+				} else {
+					result.Add("Status", "Dead, next retry at: " + pool.DeadEndPointRetryTime);
+				}
+				result.Add("Sockets in pool", pool.Poolsize.ToString());
+				result.Add("Acquired sockets", pool.Acquired.ToString());
+				result.Add("New sockets created", pool.NewSockets.ToString());
+				result.Add("New sockets failed", pool.FailedNewSockets.ToString());
+				result.Add("Sockets reused", pool.ReusedSockets.ToString());
+				result.Add("Sockets died in pool", pool.DeadSocketsInPool.ToString());
+				result.Add("Sockets died on return", pool.DeadSocketsOnReturn.ToString());
+				result.Add("Dirty sockets on return", pool.DirtySocketsOnReturn.ToString());
+
+				results.Add(pool.Host, result);
+			}
+			return results;
 		}
 		#endregion
 	}

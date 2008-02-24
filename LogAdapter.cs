@@ -24,7 +24,7 @@
 using System;
 
 namespace BeIT.MemCached {
-	public class LogAdapter {
+	internal class LogAdapter {
 		public static LogAdapter GetLogger(Type type) {
 			return new LogAdapter(type);
 		}
@@ -62,6 +62,20 @@ namespace BeIT.MemCached {
 		public void Warn(string message, Exception e) { Console.Out.WriteLine(DateTime.Now + " WARN " + loggerName + " - " + message + "\n" + e.StackTrace); }
 		public void Error(string message, Exception e) { Console.Out.WriteLine(DateTime.Now + " ERROR " + loggerName + " - " + message + "\n" + e.StackTrace); }
 		public void Fatal(string message, Exception e) { Console.Out.WriteLine(DateTime.Now + " FATAL " + loggerName + " - " + message + "\n" + e.StackTrace); }
+
+		//Empty logging Implementation
+		/*
+		public void Debug(string message) {}
+		public void Info(string message) { }
+		public void Warn(string message) { }
+		public void Error(string message) { }
+		public void Fatal(string message) { }
+		public void Debug(string message, Exception e) { }
+		public void Info(string message, Exception e) { }
+		public void Warn(string message, Exception e) { }
+		public void Error(string message, Exception e) { }
+		public void Fatal(string message, Exception e) { }
+		*/
 
 		//Log4net Implementation
 		/*

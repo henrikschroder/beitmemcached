@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BeIT.MemCached;
 
 namespace BeITMemcached {
@@ -49,6 +50,7 @@ namespace BeITMemcached {
 				Console.Out.WriteLine("Fetched item with key: mydate, value: " + (DateTime)result[1]);
 			}
 
+			//Set a counter
 			Console.Out.WriteLine("Setting an item for incrementing and decrementing.");
 			cache.SetCounter("mycounter", 9000);
 			ulong? counter = cache.GetCounter("mycounter");
@@ -56,14 +58,25 @@ namespace BeITMemcached {
 				Console.Out.WriteLine("Fetched mycounter, value: " + counter.Value);
 			}
 
+			//Increment the counter
 			counter = cache.Increment("mycounter", 1);
 			if (counter.HasValue) {
 				Console.Out.WriteLine("Incremented mycounter with 1, new value: " + counter.Value);
 			}
 
+			//Decrement the counter
 			counter = cache.Decrement("mycounter", 9000);
 			if (counter.HasValue) {
 				Console.Out.WriteLine("Decremented mycounter with 9000, new value: " + counter.Value);
+			}
+
+			Console.Out.WriteLine("Displaying the socketpool status:");
+			foreach (KeyValuePair<string, Dictionary<string, string>> host in cache.Status()) {
+				Console.Out.WriteLine("Host: " + host.Key);
+				foreach (KeyValuePair<string, string> item in host.Value) {
+					Console.Out.WriteLine("\t" + item.Key + ": " + item.Value);
+				}
+				Console.Out.WriteLine();
 			}
 
 			Console.Out.WriteLine();
