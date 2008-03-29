@@ -145,6 +145,13 @@ namespace BeIT.MemCached{
 		/// </summary>
 		public TimeSpan SocketRecycleAge { get { return serverPool.SocketRecycleAge; } set { serverPool.SocketRecycleAge = value; } }
 
+		private uint compressionThreshold = 1024*128; //128kb
+		/// <summary>
+		/// If an object being stored is larger in bytes than the compression threshold, it will internally be compressed before begin stored,
+		/// and it will transparently be decompressed when retrieved. Only strings, byte arrays and objects can be compressed.
+		/// The default value is 1048576 bytes = 1MB.
+		/// </summary>
+		public uint CompressionThreshold { get { return compressionThreshold; } set { compressionThreshold = value; } }
 
 		//Private constructor
 		private MemcachedClient(string name, string[] hosts) {
@@ -264,7 +271,7 @@ namespace BeIT.MemCached{
 
 				//Serialize object efficiently, store the datatype marker in the flags property.
 				try {
-					bytes = Serializer.Serialize(value, out type);
+					bytes = Serializer.Serialize(value, out type, CompressionThreshold);
 				}
 				catch (Exception e) {
 					//If serialization fails, return false;

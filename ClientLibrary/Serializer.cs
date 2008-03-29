@@ -23,6 +23,7 @@
 
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
@@ -44,19 +45,31 @@ namespace BeIT.MemCached
 		Long		= 11,
 		ULong		= 12,
 		Float		= 13,
-		Double		= 14
+		Double		= 14,
+
+		CompressedByteArray	= 255,
+		CompressedObject	= 256,
+		CompressedString	= 257,
 	}
 
 	internal class Serializer
 	{
-		public static byte[] Serialize(object value, out SerializedType type) {
+		public static byte[] Serialize(object value, out SerializedType type, uint compressionThreshold) {
 			byte[] bytes;
 			if (value is byte[]) {
 				bytes = (byte[])value;
 				type = SerializedType.ByteArray;
+				if (bytes.Length > compressionThreshold) {
+					bytes = compress(bytes);
+					type = SerializedType.CompressedByteArray;
+				}
 			} else if (value is string) {
 				bytes = Encoding.UTF8.GetBytes((string)value);
 				type = SerializedType.String;
+				if (bytes.Length > compressionThreshold) {
+					bytes = compress(bytes);
+					type = SerializedType.CompressedString;
+				}
 			} else if (value is DateTime) {
 				bytes = BitConverter.GetBytes(((DateTime)value).Ticks);
 				type = SerializedType.Datetime;
@@ -96,9 +109,39 @@ namespace BeIT.MemCached
 					new BinaryFormatter().Serialize(ms, value);
 					bytes = ms.GetBuffer();
 					type = SerializedType.Object;
+					if (bytes.Length > compressionThreshold) {
+						bytes = compress(bytes);
+						type = SerializedType.CompressedObject;
+					}
 				}
 			}
 			return bytes;
+		}
+
+		private static byte[] compress(byte[] bytes) {
+			using (MemoryStream ms = new MemoryStream()) {
+				using (DeflateStream gzs = new DeflateStream(ms, CompressionMode.Compress, false)) {
+					gzs.Write(bytes, 0, bytes.Length);
+				}
+				ms.Close();
+				return ms.GetBuffer();
+			}
+		}
+
+		private static byte[] decompress (byte[] bytes) {
+			using (MemoryStream ms = new MemoryStream(bytes, false)) {
+				using(DeflateStream gzs = new DeflateStream(ms, CompressionMode.Decompress, false)) {
+					using(MemoryStream dest = new MemoryStream()) {
+						byte[] tmp = new byte[bytes.Length];
+						int read;
+						while ((read = gzs.Read(tmp, 0, tmp.Length)) != 0) {
+							dest.Write(tmp, 0, read);
+						}
+						dest.Close();
+						return dest.GetBuffer();
+					}
+				}
+			}
 		}
 
 		public static object DeSerialize(byte[] bytes, SerializedType type) {
@@ -131,6 +174,12 @@ namespace BeIT.MemCached
 					using(MemoryStream ms = new MemoryStream(bytes)) {
 						return new BinaryFormatter().Deserialize(ms);
 					}
+				case SerializedType.CompressedByteArray:
+					return DeSerialize(decompress(bytes), SerializedType.ByteArray);
+				case SerializedType.CompressedString:
+					return DeSerialize(decompress(bytes), SerializedType.String);
+				case SerializedType.CompressedObject:
+					return DeSerialize(decompress(bytes), SerializedType.Object);
 				case SerializedType.ByteArray:
 				default:
 					return bytes;
