@@ -67,15 +67,12 @@ namespace BeIT.MemCached {
 				SocketPool pool = new SocketPool(this, host.Trim());
 
 				//Create 100 keys for this pool, store each key in the hostDictionary, as well as in the list of keys.
-				string str = host;
 				for (int i = 0; i < 100; i++) {
-					//To get a good distribution of hashes for each host, we start by hashing the name of the host, then we iteratively hash the result until we have the wanted number of hashes.
-					uint key = BitConverter.ToUInt32(new ModifiedFNV1_32().ComputeHash(Encoding.UTF8.GetBytes(str)), 0);
+					uint key = BitConverter.ToUInt32(new ModifiedFNV1_32().ComputeHash(Encoding.UTF8.GetBytes(host + "-" + i)), 0);
 					if (!hostDictionary.ContainsKey(key)) {
 						hostDictionary[key] = pool;
 						keys.Add(key);
 					}
-					str = key.ToString(CultureInfo.InvariantCulture);
 				}
 
 				pools.Add(pool);
