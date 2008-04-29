@@ -575,14 +575,16 @@ namespace BeIT.MemCached{
 
 		/// <summary>
 		/// This method corresponds to the "stats" command in the memcached protocol.
-		/// It will send the stats command to the given server, and return a Dictionary 
-		/// containing the results of the command.
+		/// It will send the stats command to the server that corresponds to the given key, hash or host,
+		/// and return a Dictionary containing the results of the command.
 		/// </summary>
-		public Dictionary<string, string> Stats(string host) {
-			SocketPool pool = serverPool.GetSocketPool(host);
-            if (pool == null) {
+		public Dictionary<string, string> Stats(string key) { return Stats(hash(key)); }
+		public Dictionary<string, string> Stats(uint hash) { return Stats(serverPool.GetSocketPool(hash)); }
+		public Dictionary<string, string> StatsByHost(string host) { return Stats(serverPool.GetSocketPool(host)); }
+		private Dictionary<string, string> Stats(SocketPool pool) {
+			if (pool == null) {
 				return null;
-            }
+			}
 			Dictionary<string, string> result = new Dictionary<string, string>();
 			serverPool.Execute(pool, delegate(PooledSocket socket) {
 				socket.Write("stats\r\n");
@@ -593,7 +595,8 @@ namespace BeIT.MemCached{
 				}
 			});
 			return result;
- 		}
+		}
+
 		#endregion
 
 		#region Status
