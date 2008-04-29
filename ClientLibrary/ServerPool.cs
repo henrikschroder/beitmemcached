@@ -113,6 +113,10 @@ namespace BeIT.MemCached {
 			return hostDictionary[hostKeys[i]];
 		}
 
+		internal SocketPool GetSocketPool(string host) {
+			return Array.Find(HostList, delegate(SocketPool socketPool) { return socketPool.Host == host; });
+		}
+
 		/// <summary>
 		/// This method executes the given delegate on a socket from the server that corresponds to the given hash.
 		/// If anything causes an error, the given defaultValue will be returned instead.
