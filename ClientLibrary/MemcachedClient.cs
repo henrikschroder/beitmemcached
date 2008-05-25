@@ -615,9 +615,9 @@ namespace BeIT.MemCached{
 				}
 				result.Add("Sockets in pool", pool.Poolsize.ToString());
 				result.Add("Acquired sockets", pool.Acquired.ToString());
+				result.Add("Sockets reused", pool.ReusedSockets.ToString());
 				result.Add("New sockets created", pool.NewSockets.ToString());
 				result.Add("New sockets failed", pool.FailedNewSockets.ToString());
-				result.Add("Sockets reused", pool.ReusedSockets.ToString());
 				result.Add("Sockets died in pool", pool.DeadSocketsInPool.ToString());
 				result.Add("Sockets died on return", pool.DeadSocketsOnReturn.ToString());
 				result.Add("Dirty sockets on return", pool.DirtySocketsOnReturn.ToString());
