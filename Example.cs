@@ -83,6 +83,28 @@ namespace BeIT.MemCached {
 				Console.Out.WriteLine("Decremented mycounter with 9000, new value: " + counter.Value);
 			}
 
+			//Append and prepend
+			Console.Out.WriteLine("Storing bar for append/prepend");
+			cache.Set("foo", "bar");
+			Console.Out.WriteLine("Appending baz");
+			cache.Append("foo", " baz");
+			Console.Out.WriteLine("Prepending foo");
+			cache.Prepend("foo", "foo ");
+			Console.Out.WriteLine("New value: " + cache.Get("foo"));
+
+			//Cas
+			cache.Delete("castest");
+			Console.Out.WriteLine("Trying to CAS non-existant key castest: " + cache.CheckAndSet("castest", "a", 0));
+			Console.Out.WriteLine("Setting value for key: castest, value: a");
+			cache.Set("castest", "a");
+			Console.Out.WriteLine("Trying to CAS key castest with the wrong unique: " + cache.CheckAndSet("castest", "a", 0));
+			ulong unique;
+			cache.Gets("castest", out unique);
+			Console.Out.WriteLine("Getting cas unique for key castest: " + unique);
+			Console.Out.WriteLine("Trying to CAS again with the above unique: " + cache.CheckAndSet("castest", "b", unique));
+			string value = cache.Gets("castest", out unique) as string;
+			Console.Out.WriteLine("New value: " + value + ", new unique: " + unique);
+
 			Console.Out.WriteLine("Displaying the socketpool status:");
 			foreach (KeyValuePair<string, Dictionary<string, string>> host in cache.Status()) {
 				Console.Out.WriteLine("Host: " + host.Key);

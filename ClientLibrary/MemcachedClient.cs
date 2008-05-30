@@ -260,36 +260,106 @@ namespace BeIT.MemCached{
 		public bool Replace(string key, object value, DateTime expiry) { return store("replace", key, true, value, hash(key), getUnixTime(expiry)); }
 		public bool Replace(string key, object value, uint hash, DateTime expiry) { return store("replace", key, false, value, hash, getUnixTime(expiry)); }
 
+		/// <summary>
+		/// This method corresponds to the "append" command in the memcached protocol.
+		/// It will append the given value to the given key, if the key already exists.
+		/// Modifying a key with this command will not change its expiry time.
+		/// Using the overload it is possible to specify a custom hash to override server selection.
+		/// </summary>
+		public bool Append(string key, object value) { return store("append", key, true, value, hash(key)); }
+		public bool Append(string key, object value, uint hash) { return store("append", key, false, value, hash); }
+
+		/// <summary>
+		/// This method corresponds to the "prepend" command in the memcached protocol.
+		/// It will prepend the given value to the given key, if the key already exists.
+		/// Modifying a key with this command will not change its expiry time.
+		/// Using the overload it is possible to specify a custom hash to override server selection.
+		/// </summary>
+		public bool Prepend(string key, object value) { return store("prepend", key, true, value, hash(key)); }
+		public bool Prepend(string key, object value, uint hash) { return store("prepend", key, false, value, hash); }
+
+		public enum CasResult {
+			Stored = 0,
+			NotStored = 1,
+			Exists = 2,
+			NotFound = 3
+		}
+
+		public CasResult CheckAndSet(string key, object value, ulong unique) { return store(key, true, value, hash(key), 0, unique); }
+		public CasResult CheckAndSet(string key, object value, uint hash, ulong unique) { return store(key, false, value, hash, 0, unique); }
+		public CasResult CheckAndSet(string key, object value, TimeSpan expiry, ulong unique) { return store(key, true, value, hash(key), (int)expiry.TotalSeconds, unique); }
+		public CasResult CheckAndSet(string key, object value, uint hash, TimeSpan expiry, ulong unique) { return store(key, false, value, hash, (int)expiry.TotalSeconds, unique); }
+		public CasResult CheckAndSet(string key, object value, DateTime expiry, ulong unique) { return store(key, true, value, hash(key), getUnixTime(expiry), unique); }
+		public CasResult CheckAndSet(string key, object value, uint hash, DateTime expiry, ulong unique) { return store(key, false, value, hash, getUnixTime(expiry), unique); }
+
+		//Private overload for the Set, Add and Replace commands.
 		private bool store(string command, string key, bool keyIsChecked, object value, uint hash, int expiry) {
+			return store(command, key, keyIsChecked, value, hash, expiry, 0).StartsWith("STORED");
+		}
+
+		//Private overload for the Append and Prepend commands.
+		private bool store(string command, string key, bool keyIsChecked, object value, uint hash) {
+			return store(command, key, keyIsChecked, value, hash, 0, 0).StartsWith("STORED");
+		}
+
+		//Private overload for the Cas command.
+		private CasResult store(string key, bool keyIsChecked, object value, uint hash, int expiry, ulong unique) {
+			string result = store("cas", key, keyIsChecked, value, hash, expiry, unique);
+			if (result.StartsWith("STORED")) {
+				return CasResult.Stored;
+			} else if (result.StartsWith("EXISTS")) {
+				return CasResult.Exists;
+			} else if (result.StartsWith("NOT_FOUND")) {
+				return CasResult.NotFound;
+			}
+			return CasResult.NotStored;
+		}
+
+		//Private common store method.
+		private string store(string command, string key, bool keyIsChecked, object value, uint hash, int expiry, ulong unique) {
 			if (!keyIsChecked) {
 				checkKey(key);
 			}
 
-			return serverPool.Execute<bool>(hash, false, delegate(PooledSocket socket){
+			return serverPool.Execute<string>(hash, "", delegate(PooledSocket socket) {
 				SerializedType type;
 				byte[] bytes;
 
 				//Serialize object efficiently, store the datatype marker in the flags property.
 				try {
 					bytes = Serializer.Serialize(value, out type, CompressionThreshold);
-				}
-				catch (Exception e) {
+				} catch (Exception e) {
 					//If serialization fails, return false;
 
 					logger.Error("Error serializing object for key '" + key + "'.", e);
-					return false;
+					return "";
 				}
 
 				//Create commandline
-				string commandline = command + " " + keyPrefix + key + " " + (ushort)type + " " + expiry + " " + bytes.Length + "\r\n";
+				string commandline = "";
+				switch(command) {
+					case "set":
+					case "add":
+					case "replace":
+						commandline = command + " " + keyPrefix + key + " " + (ushort)type + " " + expiry + " " + bytes.Length + "\r\n";
+						break;
+					case "append":
+					case "prepend":
+						commandline = command + " " + keyPrefix + key + " 0 0 " + bytes.Length + "\r\n";
+						break;
+					case "cas":
+						commandline = command + " " + keyPrefix + key + " " + (ushort)type + " " + expiry + " " + bytes.Length + " " + unique + "\r\n";
+						break;
+				}
 
 				//Write commandline and serialized object.
 				socket.Write(commandline);
 				socket.Write(bytes);
 				socket.Write("\r\n");
-				return socket.ReadResponse().StartsWith("STORED");
+				return socket.ReadResponse();
 			});
 		}
+
 		#endregion
 
 		#region Get
@@ -301,28 +371,53 @@ namespace BeIT.MemCached{
 		/// values.
 		/// Use the overload to specify a custom hash to override server selection.
 		/// </summary>
-		public object Get(string key) { return get(key, true, hash(key)); }
-		public object Get(string key, uint hash) { return get(key, false, hash); }
+		public object Get(string key) { ulong i; return get(key, true, hash(key), out i); }
+		public object Get(string key, uint hash) { ulong i; return get(key, false, hash, out i); }
 
-		private object get(string key, bool keyIsChecked, uint hash) {
+		/// <summary>
+		/// This method corresponds to the "gets" command in the memcached protocol.
+		/// It works exactly like the Get method, but it will also return the cas unique value for the item.
+		/// </summary>
+		public object Gets(string key, out ulong unique) { return get(key, true, hash(key), out unique); }
+		public object Gets(string key, uint hash, out ulong unique) { return get(key, false, hash, out unique); }
+
+		private object get(string key, bool keyIsChecked, uint hash, out ulong unique) {
 			if (!keyIsChecked) {
 				checkKey(key);
 			}
 
-			return serverPool.Execute<object>(hash, null, delegate(PooledSocket socket){
-				socket.Write("get " + keyPrefix + key + "\r\n");
-				object value;
-				if (readValue(socket, out value, out key)) {
+			ulong __unique = 0;
+			object value = serverPool.Execute<object>(hash, null, delegate(PooledSocket socket) {
+				socket.Write("gets " + keyPrefix + key + "\r\n");
+				object _value;
+				ulong _unique;
+				if (readValue(socket, out _value, out key, out _unique)) {
 					socket.ReadLine(); //Read the trailing END.
 				}
-				return value;
+				__unique = _unique;
+				return _value;
 			});
+			unique = __unique;
+			return value;
 		}
 
-		public object[] Get(string[] keys) { return get(keys, true, hash(keys)); }
-		public object[] Get(string[] keys, uint[] hashes) { return get(keys, false, hashes); }
+		/// <summary>
+		/// This method executes a multi-get. It will group the keys by server and execute a single get 
+		/// for each server, and combine the results. The returned object[] will have the same size as
+		/// the given key array, and contain either null or a value at each position according to
+		/// the key on that position.
+		/// </summary>
+		public object[] Get(string[] keys) { ulong[] uniques; return get(keys, true, hash(keys), out uniques); }
+		public object[] Get(string[] keys, uint[] hashes) { ulong[] uniques; return get(keys, false, hashes, out uniques); }
+		
+		/// <summary>
+		/// This method does a multi-gets. It functions exactly like the multi-get method, but it will
+		/// also return an array of cas unique values as an out parameter.
+		/// </summary>
+		public object[] Gets(string[] keys, out ulong[] uniques) { return get(keys, true, hash(keys), out uniques); }
+		public object[] Gets(string[] keys, uint[] hashes, out ulong[] uniques) { return get(keys, false, hashes, out uniques); }
 
-		private object[] get(string[] keys, bool keysAreChecked, uint[] hashes) {
+		private object[] get(string[] keys, bool keysAreChecked, uint[] hashes, out ulong[] uniques) {
 			//Check arguments.
 			if (keys == null || hashes == null) {
 				throw new ArgumentException("Keys and hashes arrays must not be null.");
@@ -330,10 +425,11 @@ namespace BeIT.MemCached{
 			if (keys.Length != hashes.Length) {
 				throw new ArgumentException("Keys and hashes arrays must be of the same length.");
 			}
+			uniques = new ulong[keys.Length];
 
 			//Avoid going through the server grouping if there's only one key.
 			if (keys.Length == 1) {
-				return new object[] { get(keys[0], keysAreChecked, hashes[0]) };
+				return new object[] { get(keys[0], keysAreChecked, hashes[0], out uniques[0]) };
 			}
 
 			//Check keys.
@@ -361,10 +457,11 @@ namespace BeIT.MemCached{
 
 			//Get the values
 			object[] returnValues = new object[keys.Length];
+			ulong[] _uniques = new ulong[keys.Length];
 			foreach (KeyValuePair<SocketPool, Dictionary<string, List<int>>> kv in dict) {
 				serverPool.Execute(kv.Key, delegate(PooledSocket socket){
 					//Build the get request
-					StringBuilder getRequest = new StringBuilder("get");
+					StringBuilder getRequest = new StringBuilder("gets");
 					foreach (KeyValuePair<string, List<int>> key in kv.Value) {
 						getRequest.Append(" ");
 						getRequest.Append(keyPrefix);
@@ -378,25 +475,28 @@ namespace BeIT.MemCached{
 					//Read values, one by one
 					object gottenObject;
 					string gottenKey;
-					while (readValue(socket, out gottenObject, out gottenKey)) {
+					ulong unique;
+					while (readValue(socket, out gottenObject, out gottenKey, out unique)) {
 						foreach(int position in kv.Value[gottenKey]) {
 							returnValues[position] = gottenObject;
+							_uniques[position] = unique;
 						}
 					}
 				});
 			}
-
+			uniques = _uniques;
 			return returnValues;
 		}
 
 		//Private method for reading results of the "get" command.
-		private bool readValue(PooledSocket socket, out object value, out string key) {
+		private bool readValue(PooledSocket socket, out object value, out string key, out ulong unique) {
 			string response = socket.ReadResponse();
-			string[] parts = response.Split(' '); //Result line from server: "VALUE key flags bytes"
+			string[] parts = response.Split(' '); //Result line from server: "VALUE <key> <flags> <bytes> <cas unique>"
 			if (parts[0] == "VALUE") {
 				key = parts[1];
 				SerializedType type = (SerializedType)Enum.Parse(typeof(SerializedType), parts[2]);
-				byte[] bytes = new byte[Convert.ToInt32(parts[3], CultureInfo.InvariantCulture)];
+				byte[] bytes = new byte[Convert.ToUInt32(parts[3], CultureInfo.InvariantCulture)];
+				unique = Convert.ToUInt64(parts[4]);
 				socket.Read(bytes);
 				socket.SkipUntilEndOfLine(); //Skip the trailing \r\n
 				try {
@@ -410,6 +510,7 @@ namespace BeIT.MemCached{
 			} else {
 				key = null;
 				value = null;
+				unique = 0;
 				return false;
 			}
 		}
@@ -424,10 +525,10 @@ namespace BeIT.MemCached{
 		/// </summary>
 		public bool Delete(string key) { return delete(key, true, hash(key), 0); }
 		public bool Delete(string key, uint hash) { return delete(key, false, hash, 0); }
-		public bool Delete(string key, TimeSpan time) { return delete(key, true, hash(key), (int)time.TotalSeconds); }
-		public bool Delete(string key, uint hash, TimeSpan time) { return delete(key, false, hash, (int)time.TotalSeconds);	}
-		public bool Delete(string key, DateTime time) {	return delete(key, true, hash(key), getUnixTime(time)); }
-		public bool Delete(string key, uint hash, DateTime time) {	return delete(key, false, hash, getUnixTime(time));	}
+		public bool Delete(string key, TimeSpan delay) { return delete(key, true, hash(key), (int)delay.TotalSeconds); }
+		public bool Delete(string key, uint hash, TimeSpan delay) { return delete(key, false, hash, (int)delay.TotalSeconds);	}
+		public bool Delete(string key, DateTime delay) { return delete(key, true, hash(key), getUnixTime(delay)); }
+		public bool Delete(string key, uint hash, DateTime delay) { return delete(key, false, hash, getUnixTime(delay));	}
 
 		private bool delete(string key, bool keyIsChecked, uint hash, int time) {
 			if (!keyIsChecked) {
@@ -448,14 +549,19 @@ namespace BeIT.MemCached{
 		#endregion
 
 		#region Increment Decrement
-		//TODO: Expiry overloads
 		/// <summary>
 		/// This method sets the key to the given value, and stores it in a format such that the methods
 		/// Increment and Decrement can be used successfully on it, i.e. decimal representation of a 64-bit unsigned integer. 
-		/// Use the overload to specify a custom hash to override server selection.
+		/// Using the overloads it is possible to specify an expiry time, either relative as a TimeSpan or 
+		/// absolute as a DateTime. It is also possible to specify a custom hash to override server selection.
+		/// This method returns true if the counter was successfully set.
 		/// </summary>
 		public bool SetCounter(string key, ulong value) { return Set(key, value.ToString(CultureInfo.InvariantCulture)); }
 		public bool SetCounter(string key, ulong value, uint hash) { return Set(key, value.ToString(CultureInfo.InvariantCulture), hash); }
+		public bool SetCounter(string key, ulong value, TimeSpan expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), expiry); }
+		public bool SetCounter(string key, ulong value, uint hash, TimeSpan expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), hash, expiry); }
+		public bool SetCounter(string key, ulong value, DateTime expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), expiry); }
+		public bool SetCounter(string key, ulong value, uint hash, DateTime expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), hash, expiry); }
 
 		/// <summary>
 		/// This method returns the value for the given key as a ulong?, a nullable 64-bit unsigned integer.
@@ -466,8 +572,8 @@ namespace BeIT.MemCached{
 		public ulong? GetCounter(string key, uint hash) { return getCounter(key, false, hash); }
 
 		private ulong? getCounter(string key, bool keyIsChecked, uint hash) {
-			ulong parsedLong;
-			return ulong.TryParse(get(key, keyIsChecked, hash) as string, out parsedLong) ? (ulong?)parsedLong : null;
+			ulong parsedLong, unique;
+			return ulong.TryParse(get(key, keyIsChecked, hash, out unique) as string, out parsedLong) ? (ulong?)parsedLong : null;
 		}
 
 		public ulong?[] GetCounter(string[] keys) {return getCounter(keys, true, hash(keys));}
@@ -475,7 +581,8 @@ namespace BeIT.MemCached{
 
 		private ulong?[] getCounter(string[] keys, bool keysAreChecked, uint[] hashes) {
 			ulong?[] results = new ulong?[keys.Length];
-			object[] values = get(keys, keysAreChecked, hashes);
+			ulong[] uniques;
+			object[] values = get(keys, keysAreChecked, hashes, out uniques);
 			for (int i = 0; i < values.Length; i++) {
 				ulong parsedLong;
 				results[i] = ulong.TryParse(values[i] as string, out parsedLong) ? (ulong?)parsedLong : null;
