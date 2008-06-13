@@ -23,7 +23,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
 
 namespace BeIT.MemCached {
@@ -66,8 +65,8 @@ namespace BeIT.MemCached {
 				//Create pool
 				SocketPool pool = new SocketPool(this, host.Trim());
 
-				//Create 100 keys for this pool, store each key in the hostDictionary, as well as in the list of keys.
-				for (int i = 0; i < 100; i++) {
+				//Create 250 keys for this pool, store each key in the hostDictionary, as well as in the list of keys.
+				for (int i = 0; i < 250; i++) {
 					uint key = BitConverter.ToUInt32(new ModifiedFNV1_32().ComputeHash(Encoding.UTF8.GetBytes(host + "-" + i)), 0);
 					if (!hostDictionary.ContainsKey(key)) {
 						hostDictionary[key] = pool;
