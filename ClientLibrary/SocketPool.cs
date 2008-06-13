@@ -37,10 +37,12 @@ namespace BeIT.MemCached {
 		private static LogAdapter logger = LogAdapter.GetLogger(typeof(SocketPool));
 
 		/// <summary>
-		/// If a SocketPool is unable to connect to its endpoint, it will mark it as dead, automatically fail
-		/// all calls to Acquire until the specified interval has elapsed, and then retry again.
+		/// If the host stops responding, we mark it as dead for this amount of seconds, 
+		/// and we double this for each consecutive failed retry. If the host comes alive
+		/// again, we reset this to 1 again.
 		/// </summary>
-		private const int DeadEndPointMinutesUntilRetry = 2;
+		private int deadEndPointSecondsUntilRetry = 1;
+		private const int maxDeadEndPointSecondsUntilRetry = 60*10; //10 minutes
 		private ServerPool owner;
 		private IPEndPoint endPoint;
 		private Queue<PooledSocket> queue;
@@ -146,7 +148,10 @@ namespace BeIT.MemCached {
 
 			//Try to create a new socket. On failure, mark endpoint as dead and return null.
 			try {
-				return new PooledSocket(this, endPoint, owner.SendReceiveTimeout);
+				PooledSocket socket = new PooledSocket(this, endPoint, owner.SendReceiveTimeout);
+				//Reset retry timer on success.
+				deadEndPointSecondsUntilRetry = 1;
+				return socket;
 			}
 			catch (Exception e) {
 				Interlocked.Increment(ref failednewsockets);
@@ -154,7 +159,10 @@ namespace BeIT.MemCached {
 				//Mark endpoint as dead
 				isEndPointDead = true;
 				//Retry in 2 minutes
-				deadEndPointRetryTime = DateTime.Now.AddMinutes(DeadEndPointMinutesUntilRetry);
+				deadEndPointRetryTime = DateTime.Now.AddSeconds(deadEndPointSecondsUntilRetry);
+				if (deadEndPointSecondsUntilRetry < maxDeadEndPointSecondsUntilRetry) {
+					deadEndPointSecondsUntilRetry = deadEndPointSecondsUntilRetry * 2; //Double retry interval until next time
+				}
 				return null;
 			}
 		}
