@@ -666,16 +666,7 @@ namespace BeIT.MemCached{
 		public Dictionary<string, Dictionary<string, string>> Stats() {
 			Dictionary<string, Dictionary<string, string>> results = new Dictionary<string, Dictionary<string, string>>();
 			foreach (SocketPool pool in serverPool.HostList) {
-				Dictionary<string, string> result = new Dictionary<string, string>();
-				serverPool.Execute(pool, delegate(PooledSocket socket) {
-					socket.Write("stats\r\n");
-					string line;
-					while (!(line = socket.ReadResponse().TrimEnd('\0', '\r', '\n')).StartsWith("END")) {
-						string[] s = line.Split(' ');
-						result.Add(s[1], s[2]);
-					}
-				});
-				results.Add(pool.Host, result);
+				results.Add(pool.Host, stats(pool));
 			}
 			return results;
 		}
@@ -686,9 +677,9 @@ namespace BeIT.MemCached{
 		/// and return a Dictionary containing the results of the command.
 		/// </summary>
 		public Dictionary<string, string> Stats(string key) { return Stats(hash(key)); }
-		public Dictionary<string, string> Stats(uint hash) { return Stats(serverPool.GetSocketPool(hash)); }
-		public Dictionary<string, string> StatsByHost(string host) { return Stats(serverPool.GetSocketPool(host)); }
-		private Dictionary<string, string> Stats(SocketPool pool) {
+		public Dictionary<string, string> Stats(uint hash) { return stats(serverPool.GetSocketPool(hash)); }
+		public Dictionary<string, string> StatsByHost(string host) { return stats(serverPool.GetSocketPool(host)); }
+		private Dictionary<string, string> stats(SocketPool pool) {
 			if (pool == null) {
 				return null;
 			}
