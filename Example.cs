@@ -27,7 +27,7 @@ namespace BeIT.MemCached {
 			MemcachedClient configFileCache = MemcachedClient.GetInstance("MyConfigFileCache");
 
 			//Change client settings to values other than the default like this:
-			cache.SendReceieveTimeout = 5000;
+			cache.SendReceiveTimeout = 5000;
 			cache.MinPoolSize = 1;
 			cache.MaxPoolSize = 5;
 

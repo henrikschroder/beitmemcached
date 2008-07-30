@@ -109,7 +109,7 @@ namespace BeIT.MemCached{
 		/// The send receive timeout is used to determine how long the client should wait for data to be sent 
 		/// and received from the server, specified in milliseconds. The default value is 2000.
 		/// </summary>
-		public int SendReceieveTimeout { get { return serverPool.SendReceiveTimeout; } set { serverPool.SendReceiveTimeout = value; } }
+		public int SendReceiveTimeout { get { return serverPool.SendReceiveTimeout; } set { serverPool.SendReceiveTimeout = value; } }
 
 		/// <summary>
 		/// The min pool size determines the number of sockets the socket pool will keep.
