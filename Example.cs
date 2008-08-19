@@ -41,6 +41,8 @@ namespace BeIT.MemCached {
 			cache.Set("myarray", new string[]{"This is the first string.", "This is the second string."});
 			cache.Set("myinteger", 4711);
 			cache.Set("mydate", new DateTime(2008, 02, 23));
+			//Use custom hash
+			cache.Set("secondstring", "Flygande bäckasiner söka hwila på mjuka tufvor", 4711);
 
 			//Get a string
 			string str = cache.Get("mystring") as string;
@@ -61,6 +63,11 @@ namespace BeIT.MemCached {
 			}
 			if (result[1] != null && result[1] is DateTime) {
 				Console.Out.WriteLine("Fetched item with key: mydate, value: " + (DateTime)result[1]);
+			}
+
+			str = cache.Get("secondstring", 4711) as string;
+			if (str != null) {
+				Console.Out.WriteLine("Fetched item with key and custom hash: secondstring, value: " + str);
 			}
 
 			//Set a counter

@@ -177,6 +177,15 @@ namespace BeIT.MemCached{
 		}
 
 		/// <summary>
+		/// Private hashing method for user-supplied hash values.
+		/// </summary>
+		/// <param name="hashvalue">The user-supplied hash value to hash.</param>
+		/// <returns>The hashed value</returns>
+		private uint hash(uint hashvalue) {
+			return BitConverter.ToUInt32(new ModifiedFNV1_32().ComputeHash(BitConverter.GetBytes(hashvalue)), 0);
+		}
+
+		/// <summary>
 		/// Private multi-hashing method.
 		/// </summary>
 		/// <param name="keys">An array of keys to hash.</param>
@@ -185,6 +194,19 @@ namespace BeIT.MemCached{
 			uint[] result = new uint[keys.Length];
 			for (int i = 0; i < keys.Length; i++) {
 				result[i] = hash(keys[i]);
+			}
+			return result;
+		}
+
+		/// <summary>
+		/// Private multi-hashing method for user-supplied hash values.
+		/// </summary>
+		/// <param name="hashvalues">An array of keys to hash.</param>
+		/// <returns>An arrays of hashes.</returns>
+		private uint[] hash(uint[] hashvalues) {
+			uint[] result = new uint[hashvalues.Length];
+			for (int i = 0; i < hashvalues.Length; i++) {
+				result[i] = hash(hashvalues[i]);
 			}
 			return result;
 		}
@@ -226,11 +248,11 @@ namespace BeIT.MemCached{
 		/// This method returns true if the value was successfully set.
 		/// </summary>
 		public bool Set(string key, object value) { return store("set", key, true, value, hash(key), 0); }
-		public bool Set(string key, object value, uint hash) { return store("set", key, false, value, hash, 0); }
+		public bool Set(string key, object value, uint hash) { return store("set", key, false, value, this.hash(hash), 0); }
 		public bool Set(string key, object value, TimeSpan expiry) { return store("set", key, true, value, hash(key), (int)expiry.TotalSeconds); }
-		public bool Set(string key, object value, uint hash, TimeSpan expiry) { return store("set", key, false, value, hash, (int)expiry.TotalSeconds); }
+		public bool Set(string key, object value, uint hash, TimeSpan expiry) { return store("set", key, false, value, this.hash(hash), (int)expiry.TotalSeconds); }
 		public bool Set(string key, object value, DateTime expiry) { return store("set", key, true, value, hash(key), getUnixTime(expiry)); }
-		public bool Set(string key, object value, uint hash, DateTime expiry) { return store("set", key, false, value, hash, getUnixTime(expiry)); }
+		public bool Set(string key, object value, uint hash, DateTime expiry) { return store("set", key, false, value, this.hash(hash), getUnixTime(expiry)); }
 
 		/// <summary>
 		/// This method corresponds to the "add" command in the memcached protocol. 
@@ -240,11 +262,11 @@ namespace BeIT.MemCached{
 		/// This method returns true if the value was successfully added.
 		/// </summary>
 		public bool Add(string key, object value) { return store("add", key, true, value, hash(key), 0); }
-		public bool Add(string key, object value, uint hash) { return store("add", key, false, value, hash, 0); }
+		public bool Add(string key, object value, uint hash) { return store("add", key, false, value, this.hash(hash), 0); }
 		public bool Add(string key, object value, TimeSpan expiry) { return store("add", key, true, value, hash(key), (int)expiry.TotalSeconds); }
-		public bool Add(string key, object value, uint hash, TimeSpan expiry) { return store("add", key, false, value, hash, (int)expiry.TotalSeconds); }
+		public bool Add(string key, object value, uint hash, TimeSpan expiry) { return store("add", key, false, value, this.hash(hash), (int)expiry.TotalSeconds); }
 		public bool Add(string key, object value, DateTime expiry) { return store("add", key, true, value, hash(key), getUnixTime(expiry)); }
-		public bool Add(string key, object value, uint hash, DateTime expiry) { return store("add", key, false, value, hash, getUnixTime(expiry)); }
+		public bool Add(string key, object value, uint hash, DateTime expiry) { return store("add", key, false, value, this.hash(hash), getUnixTime(expiry)); }
 
 		/// <summary>
 		/// This method corresponds to the "replace" command in the memcached protocol. 
@@ -254,11 +276,11 @@ namespace BeIT.MemCached{
 		/// This method returns true if the value was successfully replaced.
 		/// </summary>
 		public bool Replace(string key, object value) { return store("replace", key, true, value, hash(key), 0); }
-		public bool Replace(string key, object value, uint hash) { return store("replace", key, false, value, hash, 0); }
+		public bool Replace(string key, object value, uint hash) { return store("replace", key, false, value, this.hash(hash), 0); }
 		public bool Replace(string key, object value, TimeSpan expiry) { return store("replace", key, true, value, hash(key), (int)expiry.TotalSeconds); }
-		public bool Replace(string key, object value, uint hash, TimeSpan expiry) { return store("replace", key, false, value, hash, (int)expiry.TotalSeconds); }
+		public bool Replace(string key, object value, uint hash, TimeSpan expiry) { return store("replace", key, false, value, this.hash(hash), (int)expiry.TotalSeconds); }
 		public bool Replace(string key, object value, DateTime expiry) { return store("replace", key, true, value, hash(key), getUnixTime(expiry)); }
-		public bool Replace(string key, object value, uint hash, DateTime expiry) { return store("replace", key, false, value, hash, getUnixTime(expiry)); }
+		public bool Replace(string key, object value, uint hash, DateTime expiry) { return store("replace", key, false, value, this.hash(hash), getUnixTime(expiry)); }
 
 		/// <summary>
 		/// This method corresponds to the "append" command in the memcached protocol.
@@ -267,7 +289,7 @@ namespace BeIT.MemCached{
 		/// Using the overload it is possible to specify a custom hash to override server selection.
 		/// </summary>
 		public bool Append(string key, object value) { return store("append", key, true, value, hash(key)); }
-		public bool Append(string key, object value, uint hash) { return store("append", key, false, value, hash); }
+		public bool Append(string key, object value, uint hash) { return store("append", key, false, value, this.hash(hash)); }
 
 		/// <summary>
 		/// This method corresponds to the "prepend" command in the memcached protocol.
@@ -276,7 +298,7 @@ namespace BeIT.MemCached{
 		/// Using the overload it is possible to specify a custom hash to override server selection.
 		/// </summary>
 		public bool Prepend(string key, object value) { return store("prepend", key, true, value, hash(key)); }
-		public bool Prepend(string key, object value, uint hash) { return store("prepend", key, false, value, hash); }
+		public bool Prepend(string key, object value, uint hash) { return store("prepend", key, false, value, this.hash(hash)); }
 
 		public enum CasResult {
 			Stored = 0,
@@ -286,11 +308,11 @@ namespace BeIT.MemCached{
 		}
 
 		public CasResult CheckAndSet(string key, object value, ulong unique) { return store(key, true, value, hash(key), 0, unique); }
-		public CasResult CheckAndSet(string key, object value, uint hash, ulong unique) { return store(key, false, value, hash, 0, unique); }
+		public CasResult CheckAndSet(string key, object value, uint hash, ulong unique) { return store(key, false, value, this.hash(hash), 0, unique); }
 		public CasResult CheckAndSet(string key, object value, TimeSpan expiry, ulong unique) { return store(key, true, value, hash(key), (int)expiry.TotalSeconds, unique); }
-		public CasResult CheckAndSet(string key, object value, uint hash, TimeSpan expiry, ulong unique) { return store(key, false, value, hash, (int)expiry.TotalSeconds, unique); }
+		public CasResult CheckAndSet(string key, object value, uint hash, TimeSpan expiry, ulong unique) { return store(key, false, value, this.hash(hash), (int)expiry.TotalSeconds, unique); }
 		public CasResult CheckAndSet(string key, object value, DateTime expiry, ulong unique) { return store(key, true, value, hash(key), getUnixTime(expiry), unique); }
-		public CasResult CheckAndSet(string key, object value, uint hash, DateTime expiry, ulong unique) { return store(key, false, value, hash, getUnixTime(expiry), unique); }
+		public CasResult CheckAndSet(string key, object value, uint hash, DateTime expiry, ulong unique) { return store(key, false, value, this.hash(hash), getUnixTime(expiry), unique); }
 
 		//Private overload for the Set, Add and Replace commands.
 		private bool store(string command, string key, bool keyIsChecked, object value, uint hash, int expiry) {
@@ -371,24 +393,24 @@ namespace BeIT.MemCached{
 		/// values.
 		/// Use the overload to specify a custom hash to override server selection.
 		/// </summary>
-		public object Get(string key) { ulong i; return get(key, true, hash(key), out i); }
-		public object Get(string key, uint hash) { ulong i; return get(key, false, hash, out i); }
+		public object Get(string key) { ulong i; return get("get", key, true, hash(key), out i); }
+		public object Get(string key, uint hash) { ulong i; return get("get", key, false, this.hash(hash), out i); }
 
 		/// <summary>
 		/// This method corresponds to the "gets" command in the memcached protocol.
 		/// It works exactly like the Get method, but it will also return the cas unique value for the item.
 		/// </summary>
-		public object Gets(string key, out ulong unique) { return get(key, true, hash(key), out unique); }
-		public object Gets(string key, uint hash, out ulong unique) { return get(key, false, hash, out unique); }
+		public object Gets(string key, out ulong unique) { return get("gets", key, true, hash(key), out unique); }
+		public object Gets(string key, uint hash, out ulong unique) { return get("gets", key, false, this.hash(hash), out unique); }
 
-		private object get(string key, bool keyIsChecked, uint hash, out ulong unique) {
+		private object get(string command, string key, bool keyIsChecked, uint hash, out ulong unique) {
 			if (!keyIsChecked) {
 				checkKey(key);
 			}
 
 			ulong __unique = 0;
 			object value = serverPool.Execute<object>(hash, null, delegate(PooledSocket socket) {
-				socket.Write("gets " + keyPrefix + key + "\r\n");
+				socket.Write(command + " " + keyPrefix + key + "\r\n");
 				object _value;
 				ulong _unique;
 				if (readValue(socket, out _value, out key, out _unique)) {
@@ -407,17 +429,17 @@ namespace BeIT.MemCached{
 		/// the given key array, and contain either null or a value at each position according to
 		/// the key on that position.
 		/// </summary>
-		public object[] Get(string[] keys) { ulong[] uniques; return get(keys, true, hash(keys), out uniques); }
-		public object[] Get(string[] keys, uint[] hashes) { ulong[] uniques; return get(keys, false, hashes, out uniques); }
+		public object[] Get(string[] keys) { ulong[] uniques; return get("get", keys, true, hash(keys), out uniques); }
+		public object[] Get(string[] keys, uint[] hashes) { ulong[] uniques; return get("get", keys, false, hash(hashes), out uniques); }
 		
 		/// <summary>
 		/// This method does a multi-gets. It functions exactly like the multi-get method, but it will
 		/// also return an array of cas unique values as an out parameter.
 		/// </summary>
-		public object[] Gets(string[] keys, out ulong[] uniques) { return get(keys, true, hash(keys), out uniques); }
-		public object[] Gets(string[] keys, uint[] hashes, out ulong[] uniques) { return get(keys, false, hashes, out uniques); }
+		public object[] Gets(string[] keys, out ulong[] uniques) { return get("gets", keys, true, hash(keys), out uniques); }
+		public object[] Gets(string[] keys, uint[] hashes, out ulong[] uniques) { return get("gets", keys, false, hash(hashes), out uniques); }
 
-		private object[] get(string[] keys, bool keysAreChecked, uint[] hashes, out ulong[] uniques) {
+		private object[] get(string command, string[] keys, bool keysAreChecked, uint[] hashes, out ulong[] uniques) {
 			//Check arguments.
 			if (keys == null || hashes == null) {
 				throw new ArgumentException("Keys and hashes arrays must not be null.");
@@ -429,7 +451,7 @@ namespace BeIT.MemCached{
 
 			//Avoid going through the server grouping if there's only one key.
 			if (keys.Length == 1) {
-				return new object[] { get(keys[0], keysAreChecked, hashes[0], out uniques[0]) };
+				return new object[] { get(command, keys[0], keysAreChecked, hashes[0], out uniques[0]) };
 			}
 
 			//Check keys.
@@ -461,7 +483,7 @@ namespace BeIT.MemCached{
 			foreach (KeyValuePair<SocketPool, Dictionary<string, List<int>>> kv in dict) {
 				serverPool.Execute(kv.Key, delegate(PooledSocket socket){
 					//Build the get request
-					StringBuilder getRequest = new StringBuilder("gets");
+					StringBuilder getRequest = new StringBuilder(command);
 					foreach (KeyValuePair<string, List<int>> key in kv.Value) {
 						getRequest.Append(" ");
 						getRequest.Append(keyPrefix);
@@ -496,7 +518,11 @@ namespace BeIT.MemCached{
 				key = parts[1];
 				SerializedType type = (SerializedType)Enum.Parse(typeof(SerializedType), parts[2]);
 				byte[] bytes = new byte[Convert.ToUInt32(parts[3], CultureInfo.InvariantCulture)];
-				unique = Convert.ToUInt64(parts[4]);
+				if (parts.Length > 4) {
+					unique = Convert.ToUInt64(parts[4]);
+				} else {
+					unique = 0;
+				}
 				socket.Read(bytes);
 				socket.SkipUntilEndOfLine(); //Skip the trailing \r\n
 				try {
@@ -524,11 +550,11 @@ namespace BeIT.MemCached{
 		/// or to specify a custom hash to override server selection.
 		/// </summary>
 		public bool Delete(string key) { return delete(key, true, hash(key), 0); }
-		public bool Delete(string key, uint hash) { return delete(key, false, hash, 0); }
+		public bool Delete(string key, uint hash) { return delete(key, false, this.hash(hash), 0); }
 		public bool Delete(string key, TimeSpan delay) { return delete(key, true, hash(key), (int)delay.TotalSeconds); }
-		public bool Delete(string key, uint hash, TimeSpan delay) { return delete(key, false, hash, (int)delay.TotalSeconds);	}
+		public bool Delete(string key, uint hash, TimeSpan delay) { return delete(key, false, this.hash(hash), (int)delay.TotalSeconds); }
 		public bool Delete(string key, DateTime delay) { return delete(key, true, hash(key), getUnixTime(delay)); }
-		public bool Delete(string key, uint hash, DateTime delay) { return delete(key, false, hash, getUnixTime(delay));	}
+		public bool Delete(string key, uint hash, DateTime delay) { return delete(key, false, this.hash(hash), getUnixTime(delay)); }
 
 		private bool delete(string key, bool keyIsChecked, uint hash, int time) {
 			if (!keyIsChecked) {
@@ -557,11 +583,11 @@ namespace BeIT.MemCached{
 		/// This method returns true if the counter was successfully set.
 		/// </summary>
 		public bool SetCounter(string key, ulong value) { return Set(key, value.ToString(CultureInfo.InvariantCulture)); }
-		public bool SetCounter(string key, ulong value, uint hash) { return Set(key, value.ToString(CultureInfo.InvariantCulture), hash); }
+		public bool SetCounter(string key, ulong value, uint hash) { return Set(key, value.ToString(CultureInfo.InvariantCulture), this.hash(hash)); }
 		public bool SetCounter(string key, ulong value, TimeSpan expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), expiry); }
-		public bool SetCounter(string key, ulong value, uint hash, TimeSpan expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), hash, expiry); }
+		public bool SetCounter(string key, ulong value, uint hash, TimeSpan expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), this.hash(hash), expiry); }
 		public bool SetCounter(string key, ulong value, DateTime expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), expiry); }
-		public bool SetCounter(string key, ulong value, uint hash, DateTime expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), hash, expiry); }
+		public bool SetCounter(string key, ulong value, uint hash, DateTime expiry) { return Set(key, value.ToString(CultureInfo.InvariantCulture), this.hash(hash), expiry); }
 
 		/// <summary>
 		/// This method returns the value for the given key as a ulong?, a nullable 64-bit unsigned integer.
@@ -569,20 +595,20 @@ namespace BeIT.MemCached{
 		/// if it was not able to successfully retrieve the item.
 		/// </summary>
 		public ulong? GetCounter(string key) {return getCounter(key, true, hash(key));}
-		public ulong? GetCounter(string key, uint hash) { return getCounter(key, false, hash); }
+		public ulong? GetCounter(string key, uint hash) { return getCounter(key, false, this.hash(hash)); }
 
 		private ulong? getCounter(string key, bool keyIsChecked, uint hash) {
 			ulong parsedLong, unique;
-			return ulong.TryParse(get(key, keyIsChecked, hash, out unique) as string, out parsedLong) ? (ulong?)parsedLong : null;
+			return ulong.TryParse(get("get", key, keyIsChecked, hash, out unique) as string, out parsedLong) ? (ulong?)parsedLong : null;
 		}
 
 		public ulong?[] GetCounter(string[] keys) {return getCounter(keys, true, hash(keys));}
-		public ulong?[] GetCounter(string[] keys, uint[] hashes) { return getCounter(keys, false, hashes); }
+		public ulong?[] GetCounter(string[] keys, uint[] hashes) { return getCounter(keys, false, hash(hashes)); }
 
 		private ulong?[] getCounter(string[] keys, bool keysAreChecked, uint[] hashes) {
 			ulong?[] results = new ulong?[keys.Length];
 			ulong[] uniques;
-			object[] values = get(keys, keysAreChecked, hashes, out uniques);
+			object[] values = get("get", keys, keysAreChecked, hashes, out uniques);
 			for (int i = 0; i < values.Length; i++) {
 				ulong parsedLong;
 				results[i] = ulong.TryParse(values[i] as string, out parsedLong) ? (ulong?)parsedLong : null;
@@ -597,7 +623,7 @@ namespace BeIT.MemCached{
 		/// if it was not able to successfully retrieve the item. 
 		/// </summary>
 		public ulong? Increment(string key, ulong value) { return incrementDecrement("incr", key, true, value, hash(key)); }
-		public ulong? Increment(string key, ulong value, uint hash) { return incrementDecrement("incr", key, false, value, hash); }
+		public ulong? Increment(string key, ulong value, uint hash) { return incrementDecrement("incr", key, false, value, this.hash(hash)); }
 
 		/// <summary>
 		/// This method corresponds to the "decr" command in the memcached protocol.
@@ -607,7 +633,7 @@ namespace BeIT.MemCached{
 		/// if it was not able to successfully retrieve the item. 
 		/// </summary>
 		public ulong? Decrement(string key, ulong value) { return incrementDecrement("decr", key, true, value, hash(key)); }
-		public ulong? Decrement(string key, ulong value, uint hash) { return incrementDecrement("decr", key, false, value, hash); }
+		public ulong? Decrement(string key, ulong value, uint hash) { return incrementDecrement("decr", key, false, value, this.hash(hash)); }
 
 		private ulong? incrementDecrement(string cmd, string key, bool keyIsChecked, ulong value, uint hash) {
 			if (!keyIsChecked) {
@@ -677,7 +703,7 @@ namespace BeIT.MemCached{
 		/// and return a Dictionary containing the results of the command.
 		/// </summary>
 		public Dictionary<string, string> Stats(string key) { return Stats(hash(key)); }
-		public Dictionary<string, string> Stats(uint hash) { return stats(serverPool.GetSocketPool(hash)); }
+		public Dictionary<string, string> Stats(uint hash) { return stats(serverPool.GetSocketPool(this.hash(hash))); }
 		public Dictionary<string, string> StatsByHost(string host) { return stats(serverPool.GetSocketPool(host)); }
 		private Dictionary<string, string> stats(SocketPool pool) {
 			if (pool == null) {
