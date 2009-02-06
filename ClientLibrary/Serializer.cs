@@ -107,7 +107,7 @@ namespace BeIT.MemCached
 				//Object
 				using(MemoryStream ms = new MemoryStream()) {
 					new BinaryFormatter().Serialize(ms, value);
-					bytes = ms.GetBuffer();
+					bytes = ms.ToArray();
 					type = SerializedType.Object;
 					if (bytes.Length > compressionThreshold) {
 						bytes = compress(bytes);
@@ -124,7 +124,7 @@ namespace BeIT.MemCached
 					gzs.Write(bytes, 0, bytes.Length);
 				}
 				ms.Close();
-				return ms.GetBuffer();
+				return ms.ToArray();
 			}
 		}
 
@@ -138,7 +138,7 @@ namespace BeIT.MemCached
 							dest.Write(tmp, 0, read);
 						}
 						dest.Close();
-						return dest.GetBuffer();
+						return dest.ToArray();
 					}
 				}
 			}
