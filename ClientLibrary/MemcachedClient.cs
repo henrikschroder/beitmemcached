@@ -227,8 +227,10 @@ namespace BeIT.MemCached{
 			if (key.Length > 250) {
 				throw new ArgumentException("Key may not be longer than 250 characters.");
 			}
-			if (key.Contains(" ") || key.Contains("\n") || key.Contains("\r") || key.Contains("\t") || key.Contains("\f") || key.Contains("\v")) {
-				throw new ArgumentException("Key may not contain whitespace or control characters.");
+			foreach (char c in key) {
+				if (c <= 32) {
+					throw new ArgumentException("Key may not contain whitespace or control characters.");
+				}
 			}
 		}
 
