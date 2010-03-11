@@ -41,7 +41,7 @@ namespace BeIT.MemCached {
 		private Stream stream;
 		public readonly DateTime Created;
 
-		public PooledSocket(SocketPool socketPool, IPEndPoint endPoint, int sendReceiveTimeout) {
+		public PooledSocket(SocketPool socketPool, IPEndPoint endPoint, int sendReceiveTimeout, int connectTimeout) {
 			this.socketPool = socketPool;
 			Created = DateTime.Now;
 
@@ -55,8 +55,14 @@ namespace BeIT.MemCached {
 			//Do not use Nagle's Algorithm
 			socket.NoDelay = true;
 
-			//Establish connection
-			socket.Connect(endPoint);
+			//Establish connection asynchronously to enable connect timeout.
+			IAsyncResult result = socket.BeginConnect(endPoint, null, null);
+			bool success = result.AsyncWaitHandle.WaitOne(connectTimeout, false);
+			if (!success) {
+				try { socket.Close(); } catch { }
+				throw new SocketException();
+			}
+			socket.EndConnect(result);
 
 			//Wraps two layers of streams around the socket for communication.
 			stream = new BufferedStream(new NetworkStream(socket, false));

@@ -112,6 +112,12 @@ namespace BeIT.MemCached{
 		public int SendReceiveTimeout { get { return serverPool.SendReceiveTimeout; } set { serverPool.SendReceiveTimeout = value; } }
 
 		/// <summary>
+		/// The connect timeout is used to determine how long the client should wait for a connection to be established,
+		/// specified in milliseconds. The default value is 2000.
+		/// </summary>
+		public int ConnectTimeout { get { return serverPool.ConnectTimeout; } set { serverPool.ConnectTimeout = value; } }
+
+		/// <summary>
 		/// The min pool size determines the number of sockets the socket pool will keep.
 		/// Note that no sockets will be created on startup, only on use, so the socket pool will only
 		/// contain this amount of sockets if the amount of simultaneous requests goes above it.

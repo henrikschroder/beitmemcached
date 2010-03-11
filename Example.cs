@@ -28,6 +28,7 @@ namespace BeIT.MemCached {
 
 			//Change client settings to values other than the default like this:
 			cache.SendReceiveTimeout = 5000;
+			cache.ConnectTimeout = 5000;
 			cache.MinPoolSize = 1;
 			cache.MaxPoolSize = 5;
 

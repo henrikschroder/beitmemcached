@@ -148,7 +148,7 @@ namespace BeIT.MemCached {
 
 			//Try to create a new socket. On failure, mark endpoint as dead and return null.
 			try {
-				PooledSocket socket = new PooledSocket(this, endPoint, owner.SendReceiveTimeout);
+				PooledSocket socket = new PooledSocket(this, endPoint, owner.SendReceiveTimeout, owner.ConnectTimeout);
 				//Reset retry timer on success.
 				deadEndPointSecondsUntilRetry = 1;
 				return socket;
@@ -173,7 +173,7 @@ namespace BeIT.MemCached {
 		/// If there are more than MaxPoolSize sockets in the pool, it will be destroyed.
 		/// If there are less than MinPoolSize sockets in the pool, it will always be put back.
 		/// If there are something inbetween those values, the age of the socket is checked. 
-		/// If it is older than the SocketRrecycleAge, it is destroyed, otherwise it will be 
+		/// If it is older than the SocketRecycleAge, it is destroyed, otherwise it will be 
 		/// put back in the pool.
 		/// </summary>
 		internal void Return(PooledSocket socket) {
